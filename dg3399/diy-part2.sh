@@ -1,16 +1,23 @@
 #!/bin/bash
-#===============================================
-# Description: DIY script
-# File name: diy-script.sh
-# Lisence: MIT
-# Author: P3TERX
-# Blog: https://p3terx.com
-#===============================================
+set -e
 
+#==============================================
+# dg3399 diy-part2.sh (Local / CI compatible)
+#==============================================
 
-#移植设备
-# linux/rockchip/image/armv8.mk添加dg3399设备型号
-echo -e "\\ndefine Device/rockchip_dg3399
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+echo "[dg3399] Using script dir: $SCRIPT_DIR"
+
+#----------------------------------------------
+# 1. Add dg3399 device definition (idempotent)
+#----------------------------------------------
+ARMV8_MK="target/linux/rockchip/image/armv8.mk"
+
+if ! grep -q "rockchip_dg3399" "$ARMV8_MK"; then
+cat >> "$ARMV8_MK" << 'EOF'
+
+define Device/rockchip_dg3399
   DEVICE_VENDOR := Rockchip
   DEVICE_MODEL := DG3399
   SOC := rk3399
@@ -19,12 +26,37 @@ echo -e "\\ndefine Device/rockchip_dg3399
   DEVICE_PACKAGES := kmod-ata-ahci kmod-rtl8821ae kmod-usb-net-rtl8152 wpad \
     brcmfmac-nvram-43455-sdio cypress-firmware-43455-sdio
 endef
-TARGET_DEVICES += rockchip_dg3399" >> target/linux/rockchip/image/armv8.mk
+TARGET_DEVICES += rockchip_dg3399
+EOF
+echo "[dg3399] Device definition added"
+else
+echo "[dg3399] Device definition already exists, skip"
+fi
 
-# 复制修改好的uboot/Makefile到对应目录
-cp -f $GITHUB_WORKSPACE/dg3399/uboot-rockchip/Makefile package/boot/uboot-rockchip/Makefile
+#----------------------------------------------
+# 2. Replace u-boot Makefile
+#----------------------------------------------
+cp -f "$SCRIPT_DIR/uboot-rockchip/Makefile" \
+      package/boot/uboot-rockchip/Makefile
 
-# 复制patch到对应的目录
-cp -f $GITHUB_WORKSPACE/dg3399/uboot-rockchip/patches/991-rk3399-dg3399-uboot.patch package/boot/uboot-rockchip/patches/991-rk3399-dg3399-uboot.patch
+#----------------------------------------------
+# 3. Copy u-boot patch
+#----------------------------------------------
+mkdir -p package/boot/uboot-rockchip/patches
+cp -f "$SCRIPT_DIR/uboot-rockchip/patches/991-rk3399-dg3399-uboot.patch" \
+      package/boot/uboot-rockchip/patches/
 
-cp -f $GITHUB_WORKSPACE/dg3399/kernel-rockchip/patches/991-rockchip-rk3399-dg3399-kernel.patch target/linux/rockchip/patches-6.6/991-rockchip-rk3399-dg3399-kernel.patch
+#----------------------------------------------
+# 4. Copy kernel patch (auto-detect kernel ver)
+#----------------------------------------------
+KPATCH_DIR="$(ls -d target/linux/rockchip/patches-* | head -n1)"
+
+if [ -z "$KPATCH_DIR" ]; then
+  echo "[dg3399] ERROR: kernel patches dir not found"
+  exit 1
+fi
+
+cp -f "$SCRIPT_DIR/kernel-rockchip/patches/991-rockchip-rk3399-dg3399-kernel.patch" \
+      "$KPATCH_DIR/"
+
+echo "[dg3399] Patches applied successfully"
