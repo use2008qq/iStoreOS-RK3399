@@ -1,0 +1,12 @@
+本地编译报错：
+
+1  编译sqlite3出现权限错误，因为cache 是root用的，需要授权：
+rm -f /home/wells/istoreos-build/openwrt/staging_dir/target-aarch64_generic_musl/stamp/.sqlite3_installed
+     rm -f /home/wells/istoreos-build/openwrt/staging_dir/target-aarch64_generic_musl/packages/sqlite3.list
+     make[2]: Leaving directory '/home/wells/istoreos-build/openwrt/feeds/packages/libs/sqlite3'
+     time: package/feeds/packages/sqlite3/clean#0.15#0.02#0.92
+     make[1]: Leaving directory '/home/wells/istoreos-build/openwrt'
+     make: Leaving directory '/home/wells/istoreos-build/openwrt'
+
+解决方法：
+sudo chown -R wells:wells /home/wells/.cache/ccache
